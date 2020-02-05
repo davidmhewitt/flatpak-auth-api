@@ -1,0 +1,3 @@
+app.sqlite
+__pycache__/
+flatpak-auth-venv/
