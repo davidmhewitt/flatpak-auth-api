@@ -23,4 +23,4 @@ import views, models, resources
 api.add_resource(resources.UserRegistration, '/registration')
 api.add_resource(resources.UserLogin, '/login')
 api.add_resource(resources.TokenRefresh, '/token/refresh')
-api.add_resource(resources.SecretResource, '/secret')
+api.add_resource(resources.GetPurchasedTokens, '/api/v1/get_tokens')

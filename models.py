@@ -24,6 +24,10 @@ class UserModel(db.Model):
         return cls.query.filter_by(username = username).first()
 
     @classmethod
+    def find_by_id(cls, id):
+        return cls.query.filter_by(id = id).first()
+
+    @classmethod
     def return_all(cls):
         def to_json(x):
             return {
@@ -50,3 +54,7 @@ class Purchase(db.Model):
     def save_to_db(self):
         db.session.add(self)
         db.session.commit()
+
+    @classmethod
+    def find_purchase(cls, user, app_id):
+        return cls.query.filter_by(user_id = user, app_id = app_id).first()
