@@ -39,12 +39,10 @@ class UserLogin(Resource):
             return {'message': 'User {} doesn\'t exist'.format(data['username'])}, 401
 
         if UserModel.verify_hash(data['password'], current_user.password):
-            access_token = create_access_token(identity = current_user.id)
-            refresh_token = create_refresh_token(identity = current_user.id)
+            access_token = create_access_token(identity = current_user.id, expires_delta=timedelta(days=30))
             return {
                 'message': 'Logged in as {}'.format(current_user.username),
                 'access_token': access_token,
-                'refresh_token': refresh_token
             }
         else:
             return {'message': 'Wrong credentials'}, 401
