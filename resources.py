@@ -1,10 +1,11 @@
 from flask_restful import Resource, reqparse
 from models import UserModel, Purchase
-from flask_jwt_extended import (create_access_token, create_refresh_token, jwt_required, jwt_refresh_token_required, get_jwt_identity, get_raw_jwt)
+from flask_jwt_extended import (create_access_token, create_refresh_token, jwt_required, jwt_optional, jwt_refresh_token_required, get_jwt_identity, get_raw_jwt)
 from datetime import datetime, timedelta
 import jwt
 
-repoTokenLifetime = timedelta(minutes=10)
+shortRepoTokenLifetime = timedelta(minutes=10)
+longRepoTokenLifetime = timedelta(days=3650)
 repo_secret="SECRET PURCHASE TOKEN"
 
 credential_parser = reqparse.RequestParser()
@@ -47,41 +48,78 @@ class UserLogin(Resource):
         else:
             return {'message': 'Wrong credentials'}, 401
 
-class TokenRefresh(Resource):
-    def post(self):
-        return {'message': 'Token refresh'}
 
-
-class GetPurchasedTokens(Resource):
-    def __init__ (self):
+class PurchasedTokens(Resource):
+    def __init__(self):
         self.token_parser = reqparse.RequestParser()
-        self.token_parser.add_argument('ids', required=False, type=str, action='append', default=[])
+        self.token_parser.add_argument('ids', required=True, type=str, action='append', default=[])
 
-    @jwt_required
+    @jwt_optional
     def post(self):
-        data = self.token_parser.parse_args ()
+        data = self.token_parser.parse_args()
         current_user_id = get_jwt_identity()
 
-        current_user = UserModel.find_by_id (current_user_id)
-        if not current_user:
-            return {'message': 'Invalid token'}, 401
+        logged_in = current_user_id is not None
 
         denied = []
         tokens = {}
         for app_id in data['ids']:
             denied.append(app_id)
 
-        for app_id in denied:
-            if Purchase.find_purchase(current_user_id, app_id):
-                denied.remove(app_id)
-                tokens[app_id] = jwt.encode({
-                    'sub': 'users/%d' % current_user_id,
-                    'prefixes': [app_id],
-                    'exp': datetime.utcnow() + repoTokenLifetime,
-                    'name': 'auth.py',
-                }, repo_secret, algorithm='HS256').decode('utf-8')
+        if logged_in:
+            current_user = UserModel.find_by_id (current_user_id)
+            if not current_user:
+                return {'message': 'Invalid token'}, 401
+
+            for app_id in denied:
+                if Purchase.find_purchase(current_user_id, app_id):
+                    denied.remove(app_id)
+                    tokens[app_id] = jwt.encode({
+                        'sub': 'users/%d' % current_user_id,
+                        'prefixes': [app_id],
+                        'exp': datetime.utcnow() + longRepoTokenLifetime,
+                        'name': 'auth.py',
+                    }, repo_secret, algorithm='HS256').decode('utf-8')
 
         return {
             'denied': denied,
             'tokens': tokens
         }
+
+class BeginPurchase(Resource):
+    def __init__(self):
+        self.token_parser = reqparse.RequestParser()
+        self.token_parser.add_argument('id', required=True, type=str)
+
+    @jwt_optional
+    def post(self):
+        data = self.token_parser.parse_args()
+        current_user_id = get_jwt_identity()
+
+        logged_in = current_user_id is not None
+        app_id = data['id']
+        lifetime = shortRepoTokenLifetime
+
+        if logged_in:
+            lifetime = longRepoTokenLifetime
+            new_purchase = Purchase(
+                app_id = app_id,
+                user_id = current_user_id
+            )
+            try:
+                new_purchase.save_to_db()
+            except:
+                pass
+
+        tokens = {}
+        tokens[app_id] = jwt.encode({
+                        'sub': 'users/%d' % (current_user_id if current_user_id else 0),
+                        'prefixes': [app_id],
+                        'exp': datetime.utcnow() + lifetime,
+                        'name': 'auth.py',
+                        }, repo_secret, algorithm='HS256').decode('utf-8')
+
+        if logged_in:
+            return { "longTokens": tokens }
+        else :
+            return { "shortTokens": tokens }
