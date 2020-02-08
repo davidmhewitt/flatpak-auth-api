@@ -1,5 +1,5 @@
 from flask_restful import Resource, reqparse
-from models import UserModel, Purchase
+from models import UserModel, Purchase, Application
 from flask_jwt_extended import (create_access_token, create_refresh_token, jwt_required, jwt_optional, jwt_refresh_token_required, get_jwt_identity, get_raw_jwt)
 from datetime import datetime, timedelta
 import jwt
@@ -123,3 +123,21 @@ class BeginPurchase(Resource):
             return { "longTokens": tokens }
         else :
             return { "shortTokens": tokens }
+
+class GetApplication(Resource):
+    def __init__(self):
+        self.id_parser = reqparse.RequestParser()
+        self.id_parser.add_argument('id', required=True, type=str)
+
+    def post(self):
+        data = self.id_parser.parse_args()
+
+        app = Application.find_by_id(data['id'])
+        if not app:
+            return {}, 404
+        else:
+            return {
+                "name": app.name,
+                "stripe_key": app.stripe_key,
+                "recommended_amount": app.recommended_amount
+            }

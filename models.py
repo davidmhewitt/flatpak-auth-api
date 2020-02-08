@@ -27,24 +27,6 @@ class UserModel(db.Model):
     def find_by_id(cls, id):
         return cls.query.filter_by(id = id).first()
 
-    @classmethod
-    def return_all(cls):
-        def to_json(x):
-            return {
-                'username': x.username,
-                'password': x.password
-            }
-        return {'users': list(map(lambda x: to_json(x), UserModel.query.all()))}
-
-    @classmethod
-    def delete_all(cls):
-        try:
-            num_rows_deleted = db.session.query(cls).delete()
-            db.session.commit()
-            return {'message': '{} row(s) deleted'.format(num_rows_deleted)}
-        except:
-            return {'message': 'Something went wrong'}
-
 class Purchase(db.Model):
     __tablename__ = 'purchases'
     app_id = db.Column(db.String, primary_key = True)
@@ -58,3 +40,14 @@ class Purchase(db.Model):
     @classmethod
     def find_purchase(cls, user, app_id):
         return cls.query.filter_by(user_id = user, app_id = app_id).first()
+
+class Application(db.Model):
+    __tablename__ = "applications"
+    app_id = db.Column(db.String, primary_key = True, unique = True)
+    name = db.Column(db.String)
+    stripe_key = db.Column(db.String)
+    recommended_amount = db.Column(db.Integer)
+
+    @classmethod
+    def find_by_id(cls, id):
+        return cls.query.filter_by(app_id = id).first()
