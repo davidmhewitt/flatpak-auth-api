@@ -137,6 +137,7 @@ class GetApplication(Resource):
             return {}, 404
         else:
             return {
+                "id": app.app_id,
                 "name": app.name,
                 "stripe_key": app.stripe_key,
                 "recommended_amount": app.recommended_amount
