@@ -99,7 +99,6 @@ class BeginPurchase(Resource):
     @jwt_optional
     def post(self):
         data = self.token_parser.parse_args()
-        app.logger.info(data)
         current_user_id = get_jwt_identity()
 
         logged_in = current_user_id is not None
