@@ -89,19 +89,30 @@ class PurchasedTokens(Resource):
 class BeginPurchase(Resource):
     def __init__(self):
         self.token_parser = reqparse.RequestParser()
-        self.token_parser.add_argument('id', required=True, type=str)
+        self.token_parser.add_argument('app_id', required=True, type=str)
+        self.token_parser.add_argument('key', required=True, type=str)
+        self.token_parser.add_argument('token', required=True, type=str)
+        self.token_parser.add_argument('email', required=True, type=str)
+        self.token_parser.add_argument('amount', required=True, type=int)
+        self.token_parser.add_argument('currency', required=True, type=str)
 
     @jwt_optional
     def post(self):
         data = self.token_parser.parse_args()
+        app.logger.info(data)
         current_user_id = get_jwt_identity()
 
         logged_in = current_user_id is not None
-        app_id = data['id']
+        app_id = data['app_id']
+        amount = data['amount']
         lifetime = shortRepoTokenLifetime
 
-        if logged_in:
+        # TODO: Actually attempt stripe purchase if amount > 0
+
+        if amount > 0: # And purchase succeeds
             lifetime = longRepoTokenLifetime
+
+        if logged_in:
             new_purchase = Purchase(
                 app_id = app_id,
                 user_id = current_user_id
@@ -111,18 +122,20 @@ class BeginPurchase(Resource):
             except:
                 pass
 
-        tokens = {}
-        tokens[app_id] = jwt.encode({
+        token = jwt.encode({
                         'sub': 'users/%d' % (current_user_id if current_user_id else 0),
                         'prefixes': [app_id],
                         'exp': datetime.utcnow() + lifetime,
                         'name': 'auth.py',
                         }, repo_secret, algorithm='HS256').decode('utf-8')
 
-        if logged_in:
-            return { "longTokens": tokens }
+        return_data = { "token": token }
+        if amount > 0:
+            return_data["store"] = True
         else :
-            return { "shortTokens": tokens }
+            return_data["store"] = False
+
+        return return_data
 
 class GetApplication(Resource):
     def __init__(self):
